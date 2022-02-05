@@ -45,7 +45,7 @@ function prefixUpdater(key, value) {
 }
 
 client.on('ready', async() => {
-    client.user.setStatus('idle')
+    client.user.setStatus('online')
     console.log('Bot is online!')
     console.log('Discord verision: ' + discord.version)
 
