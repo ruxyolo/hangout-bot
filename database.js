@@ -1,20 +1,21 @@
 console.log('Initiation firebase')
+require('dotenv').config()
 const firebaseApp = require('firebase/app');
 const firebaseDatabase = require('firebase/database')
 const firebaseAuth = require('firebase/auth')
 
 
 const firebaseConfig = {
-    apiKey: "AIzaSyAfVj-IOlLQNBi4CmHUIKBq7v-hMKXbBHM",
+    apiKey: process.env.apiKey,
     authDomain: "hangout-bot-ca69c.firebaseapp.com",
     databaseURL: "https://hangout-bot-ca69c-default-rtdb.europe-west1.firebasedatabase.app",
     storageBucket: "hangout-bot-ca69c.appspot.com",
-    appId: "1:384036425228:web:3ad842f7419988e7f0e829",
+    appId: process.env.appId,
     projectId: "hangout-bot-ca69c",
     messagingSenderId: "384036425228",
     measurementId: "G-H8DT7H32C5",
     provider: "anonymous",
-    uid: "ff4817a7-2af6-4bba-9447-660645b80a50"
+    uid: process.env.UID
 };
 
 const app = firebaseApp.initializeApp(firebaseConfig)
@@ -25,6 +26,7 @@ console.log('Firebase initiated')
 
 const push = firebaseDatabase.push
 const child = firebaseDatabase.set
+const onValue = firebaseDatabase.onValue
 const ref = firebaseDatabase.ref
 const get = firebaseDatabase.get
 const set = firebaseDatabase.set
@@ -36,9 +38,9 @@ async function getData(path, callback, operation) {
             if (snapshot.exists() && snapshot.val()) {
                 if (callback) {
                     if (operation == '++') {
-                        callback(path, snapshot.val().value += 1)
+                        callback(path, snapshot.val() + 1)
                     } else if (operation == '--') {
-                        callback(path, snapshot.val().value -= 1)
+                        callback(path, snapshot.val() - 1)
                     }
                 }
                 resolve(snapshot.val())
@@ -46,11 +48,12 @@ async function getData(path, callback, operation) {
             } else {
                 if (callback) {
                     callback(path, 1)
+                    return
                 }
                 resolve(undefined)
             }
         }).catch(error => {
-            console.log(error)
+            console.warn(error)
             reject(error)
         });
     });
@@ -58,18 +61,28 @@ async function getData(path, callback, operation) {
 
 function setData(path, value) {
     if (value == '++') {
-        getData(path, setData, key, '++')
+        getData(path, setData, '++')
         return
     } else if (value == '--') {
-        getData(path, setData, key, '--')
+        getData(path, setData, '--')
+        return
     }
     console.log(`Setting ${path} to ${value}`)
     set(ref(database, path), value);
 }
 
+function create_event_listener(path, key, callback) {
+    onValue(ref(database, path + '/' + key), (snapshot) => {
+        if (snapshot.exists() && snapshot.val()) {
+            callback(key, snapshot.val())
+        }
+    });
+}
+
 let databaseFuncs = {
     'set': setData,
-    'get': getData
+    'get': getData,
+    'eventListener': create_event_listener,
 }
 
 module.exports = databaseFuncs
