@@ -3,6 +3,7 @@ const discord = require('discord.js');
 const modules = require('./modules')
 const commandData = require('./commandRun')
 const database = require('./database')
+const localhost = require('./localhost/webserver')
 
 const client = new discord.Client({ intents: ["GUILDS", "GUILD_MESSAGES", "GUILD_PRESENCES", "GUILD_MEMBERS", "DIRECT_MESSAGES", "GUILD_VOICE_STATES", "GUILD_MESSAGE_REACTIONS", "GUILD_INVITES"] });
 
@@ -64,6 +65,7 @@ client.on('ready', async() => {
             }
         })
     });
+    localhost()
     prefix = await database.get('/prefix')
     database.eventListener('', 'prefix', prefixUpdater)
     modules.log(guild, 'Hangout Bot has started!')
