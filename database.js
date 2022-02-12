@@ -41,6 +41,8 @@ async function getData(path, callback, operation) {
                         callback(path, snapshot.val() + 1)
                     } else if (operation == '--') {
                         callback(path, snapshot.val() - 1)
+                    } else {
+                        callback(path, snapshot.val())
                     }
                 }
                 resolve(snapshot.val())
@@ -59,7 +61,7 @@ async function getData(path, callback, operation) {
     });
 }
 
-function setData(path, value) {
+function setData(path, value, specialOperation) {
     if (value == '++') {
         getData(path, setData, '++')
         return
@@ -67,8 +69,12 @@ function setData(path, value) {
         getData(path, setData, '--')
         return
     }
-    console.log(`Setting ${path} to ${value}`)
-    set(ref(database, path), value);
+    //console.log(`Setting ${path} to ${value}`)
+    if (specialOperation == 'push') {
+        push(ref(database, path), value);
+    } else {
+        set(ref(database, path), value);
+    }
 }
 
 function create_event_listener(path, key, callback) {

@@ -1,12 +1,33 @@
 const discord = require('discord.js');
-const { set } = require('firebase/database');
-const client = new discord.Client({ intents: ["GUILDS"] });
 
 let colors = { 'black': '#000000', 'white': '#ffffff', 'green': '#4de705', 'lightBlue': '#28ecff' };
 let defaultColor = colors.black
 
-async function getRespond(channel) {
-
+async function getField(channel, filter) {
+    return new Promise(async(resolve, reject) => {
+        channel.send('`Write field name and value with ",, " as seperator or type n to skip.`')
+        const field = await channel.awaitMessages({ filter, max: 1, time: 240000, errors: ['time'] }).catch(() => console.log('Timeout'))
+        if (field) {
+            if (field.first().content == 'n') {
+                resolve(false)
+                return
+            }
+            let args = field.first().content.split(',, ')
+            if (args[0] && args[1]) {
+                let data = { 'name': args[0], 'value': args[1] }
+                resolve(data)
+                return
+            } else {
+                channel.send('Name or field is empty!')
+                getField(channel)
+                return
+            }
+        } else {
+            channel.send('Timeout.')
+            getField(channel)
+            return
+        }
+    })
 }
 
 async function announce(msg, msgArgs, channelSend) {
@@ -25,25 +46,35 @@ async function announce(msg, msgArgs, channelSend) {
     let collector = await channel.awaitMessages({ filter, max: 1, time: 240000, errors: ['time'] }).catch(() => console.log('Timeout'))
     if (collector) {
         if (collector.first().content != 'n') {
+            if (collector.first().content.length > 2000) {
+                channel.send('Content is larger then 200 characters.')
+                announce(msg, msgArgs, channelSend)
+                return
+            }
             msgContent = collector.first().content
         }
-        channel.send('Note that skipping the title will close the operation or when not using "https://" on URL or thumb!')
+        channel.send('Note that skipping the title will close the embed operation or when not using "https://" on URL or thumb!')
         for (i in settings) {
             let setting = settings[i]
             await channel.send('`Please send the ' + i + ' or type n to skip.`')
             let respond = await channel.awaitMessages({ filter, max: 1, time: 240000, errors: ['time'] }).catch(() => console.log('Timeout'))
             if (respond) {
                 if (respond.first().content != 'n') {
+                    if (collector.first().content.length > 2000) {
+                        channel.send('Content is larger then 200 characters.')
+                        announce(msg, msgArgs, channelSend)
+                        return
+                    }
                     if (setting[2]) {
                         if (respond.first().content.substring(0, 8) != 'https://') {
                             channel.send(setting + ' has to be a https url.')
-                            break
+                            announce(msg, msgArgs, channelSend)
                         }
                     }
-                    console.log(settings[i])
-                    console.log(respond.first().content)
                     settings[i][0] = respond.first().content
-
+                } else if (respond.first().content == 'CANCELOP') {
+                    channel.send('Closing operating!')
+                    return
                 } else {
                     if (i == 'title') {
                         channel.send('A title is required for an embed!')
@@ -60,26 +91,14 @@ async function announce(msg, msgArgs, channelSend) {
         if (!settings['color'][0]) {
             settings['color'][0] = defaultColor
         }
-
-        while (true) {
-            channel.send('`Write field name and value with ",, " as seperator or type n to skip.`')
-            const field = await channel.awaitMessages({ filter, max: 1, time: 240000, errors: ['time'] }).catch(() => console.log('Timeout'))
-            if (field) {
-                if (field.first().content == 'n') {
-                    channel.send('**Sending embed!**')
+        if (settings['title'][0]) {
+            while (true) {
+                let field = await getField(channel, filter)
+                if (field == false) {
                     break
+                } else if (field) {
+                    fields.push(field)
                 }
-                let args = field.first().content.split(',, ')
-                if (args[0] && args[1]) {
-                    let data = { 'name': args[0], 'value': args[1] }
-                    fields.push(data)
-                } else {
-                    channel.send('Name or field is empyt!')
-                    return
-                }
-            } else {
-                channel.send('Timeout.')
-                return
             }
         }
 
@@ -99,7 +118,7 @@ async function announce(msg, msgArgs, channelSend) {
                     embed.addFields(fields)
                 }
             }
-            console.log(embed)
+            channel.send('**Sending embed!**')
             if (embed) {
                 channelSend.send({ content: msgContent || undefined, embeds: [embed] || undefined }).catch((e) => {
                     console.warn(e)

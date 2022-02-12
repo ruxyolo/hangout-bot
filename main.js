@@ -3,6 +3,8 @@ const discord = require('discord.js');
 const modules = require('./modules')
 const commandData = require('./commandRun')
 const database = require('./database')
+const noblox = require('noblox')
+const robloxVerify = require('./commandScripts/robloxVerify')
 const localhost = require('./localhost/webserver')
 
 const client = new discord.Client({ intents: ["GUILDS", "GUILD_MESSAGES", "GUILD_PRESENCES", "GUILD_MEMBERS", "DIRECT_MESSAGES", "GUILD_VOICE_STATES", "GUILD_MESSAGE_REACTIONS", "GUILD_INVITES"] });
@@ -22,14 +24,22 @@ let ranks = {
 client.login(token)
 let guild = undefined
 
+async function nobloxStarter() {
+    const currentUser = await noblox.setCookie(process.env.robloxKey)
+    console.log(`Noblox is currently logged in as ${currentUser.UserName} [${currentUser.UserID}]`)
+}
+
 function addUser(member) {
     database.set('/users/' + member.user.id + '/username', member.user.username)
     if (member.user.bot == true) {
         console.log('Is bot')
         database.set(`/users/${member.user.id}/bot`, true)
+        database.set(`/historical/bots/${member.user.id}/username`, member.user.username)
+        database.set(`historical/bots/${member.id}/joinedTimestamp`, member.joinedTimestamp)
     } else {
         database.set(`/users/${member.user.id}/bot`, false)
-        database.set(`/histoical/${member.user.id}/username`, member.user.username)
+        database.set(`/historical/users/${member.user.id}/username`, member.user.username)
+        database.set(`historical/users/${member.id}/joinedTimestamp`, member.joinedTimestamp)
     }
     member.roles.cache.forEach(role => {
         database.set(`/users/${member.user.id}/roles/${role.id}`, role.name)
@@ -46,7 +56,20 @@ function prefixUpdater(key, value) {
 }
 
 client.on('ready', async() => {
-    client.user.setStatus('online')
+    if (modules.maintenanceMode == true) {
+        client.user.setPresence({
+            game: {
+                name: 'Maintenance',
+                type: 'WATCHING'
+            },
+            status: 'idle',
+            afk: true
+        })
+    } else {
+        client.user.setStatus('online')
+    }
+    modules.setClient(client)
+    nobloxStarter()
     console.log('Bot is online!')
     console.log('Discord verision: ' + discord.version)
 
@@ -59,19 +82,26 @@ client.on('ready', async() => {
     console.log('Client token: ' + string)
 
     guild.members.cache.forEach(member => {
-        database.get('users/' + member.user.id).then((data) => {
+        database.get('users/' + member.id).then((data) => {
             if (data == undefined) {
                 addUser(member)
             }
         })
     });
+    database.get('users').then((user) => {
+        for (id in user) {
+            if (!guild.members.cache.get(id)) {
+                database.set('users/' + id, null)
+            }
+        }
+    })
     localhost()
     prefix = await database.get('/prefix')
     database.eventListener('', 'prefix', prefixUpdater)
     modules.log(guild, 'Hangout Bot has started!')
 });
 
-client.on('guildMemberAdd', (member) => {
+client.on('guildMemberAdd', async(member) => {
     console.log(member.displayName + ' joined the server!')
     let role = member.guild.roles.cache.find(role => role.name === 'Member')
     if (!member.user.bot) {
@@ -98,6 +128,7 @@ async function getMessageFromReactions(msg) {
     return false
 }
 
+//Reaction giving role
 client.on('messageReactionAdd', async(reaction, user) => {
     let correctMessage = await getMessageFromReactions(reaction.message)
     if (typeof(correctMessage) == 'string' && !user.bot) {
@@ -129,6 +160,7 @@ client.on('messageDelete', async(msg) => {
     }
 })
 
+//Message Create (command)
 async function checkArgs(member, rank, d) {
     let result = false
     if (typeof(d) == 'number') {
@@ -151,53 +183,55 @@ async function checkArgs(member, rank, d) {
 }
 
 client.on('messageCreate', async(msg) => {
-    if (msg.content.substring(0, prefix.length) == prefix && msg.author.bot == false) {
-        let args = msg.content.substring(prefix.length).split(' ')
-        let user = msg.member
-        let rank = modules.getRank(msg.member)
+    if (modules.disabled == false || msg.member.id == modules.owner) {
+        if (msg.content.substring(0, prefix.length) == prefix && msg.author.bot == false) {
+            let args = msg.content.substring(prefix.length).split(' ')
+            let rank = modules.getRank(msg.member)
 
-        console.log('Users rank name: ' + ranks[rank][0])
-        let commands = commandData
-        for (i in commands) {
-            if (args[0] == i) {
-                let auth = await checkArgs(msg.member, rank, commands[i][1])
-                if (auth == true) {
-                    if (!msg.member.roles.cache.has('881087939638071346')) {
-                        if (commands[i][2]) {
-                            let num = commands[i][2]
-                            if (typeof(commands[i][2]) == 'object') {
-                                num = commands[i][2].length
-                            }
-
-                            for (let i = 0; i < num; i++) {
-                                if (args[i] == undefined) {
-                                    msg.channel.send('Missing argument(s)')
-                                    return
+            let commands = commandData
+            for (i in commands) {
+                if (args[0] == i) {
+                    let auth = await checkArgs(msg.member, rank, commands[i][1])
+                    if (auth == true) {
+                        if (!msg.member.roles.cache.has('881087939638071346')) {
+                            if (commands[i][2]) {
+                                let num = commands[i][2]
+                                if (typeof(commands[i][2]) == 'object') {
+                                    num = commands[i][2].length
                                 }
-                            }
-                            let checks = ['role', 'member']
-                            for (arg in commands[i][2]) {
-                                for (c in checks) {
-                                    c = checks[c]
-                                    if (commands[i][2][arg] == c) {
-                                        if (!msg.mentions[c + 's'].first()) {
-                                            msg.channel.send(c + ' was never mentioned in message.')
-                                            return
+
+                                for (let i = 0; i < num; i++) {
+                                    if (args[i] == undefined) {
+                                        msg.channel.send('Missing argument(s)')
+                                        return
+                                    }
+                                }
+                                let checks = ['role', 'member', 'channel']
+                                for (arg in commands[i][2]) {
+                                    for (c in checks) {
+                                        c = checks[c]
+                                        if (commands[i][2][arg] == c) {
+                                            if (!msg.mentions[c + 's'].first()) {
+                                                msg.channel.send(c + ' was never mentioned in message or ' + c + ' does not exist in the server.')
+                                                return
+                                            }
                                         }
                                     }
                                 }
                             }
+                            commands[i][0](msg, args, client)
+                            return
                         }
-                        commands[i][0](msg, args)
-                        break
                     }
                 }
             }
+            msg.channel.send('Command not found!')
         }
-        //commands to add: !trust, !kick, !timeout, !hello, !notalk, !announce, !warn, !unautherize
+        //commands to add: !trust, -!kick, !timeout, -!hello, -!notalk, -!announce, -!warn, -!unautherize
     }
 });
 
+//Livesteam
 function eventChannel(connected, state) {
     let member = state.member
     let eventChannels = modules.eventChannels
@@ -229,7 +263,9 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     }
 });
 
+//Member role update
 function updateDatabaseUserRoles(newMember, oldMember) {
+    robloxVerify.update(newMember)
     if (newMember.roles.cache.get('881155355533525002') || oldMember.roles.cache.get('881155355533525002') || newMember.roles.cache.has('881087939638071346') || oldMember.roles.cache.has('881087939638071346')) {
         return
     } else {
@@ -247,9 +283,11 @@ client.on('guildMemberUpdate', (oldMember, newMember) => {
                 //do nothing
             } else {
                 updateDatabaseUserRoles(newMember, oldMember)
+                break
             }
         } else {
             updateDatabaseUserRoles(newMember, oldMember)
+            break
         }
     }
 });

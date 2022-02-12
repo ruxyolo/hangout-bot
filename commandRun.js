@@ -1,7 +1,7 @@
 const modules = require('./modules')
 const database = require('./database')
-const robloxVerify = require('./robloxVerify')
-const announceScript = require('./announce')
+const robloxVerify = require('./commandScripts/robloxVerify')
+const announceScript = require('./commandScripts/announce')
 
 //level 1
 function hello(msg) {
@@ -26,12 +26,16 @@ function getMemberCount(msg) {
     msg.channel.send('Members in server: ' + memberCount)
 }
 
-async function verifyRoblox(msg, args) {
+async function verifyRoblox(msg) {
     robloxVerify.verify(msg)
 }
 
+async function unverifyRoblox(msg) {
+    robloxVerify.unverify(msg)
+}
+
 async function getWeather(msg, args) {
-    let weather = await modules.get(`https://api.weatherbit.io/v2.0/current?city=${msg.content.substring(args[0]+args[1]+2)}&country=${args[1]}&key=1f2291569b9d468ca7bf22612c3c4627`)
+    let weather = await modules.get(`https://api.weatherbit.io/v2.0/current?city=${msg.content.substring(args[0].length+args[1].length+3)}&country=${args[1]}&key=1f2291569b9d468ca7bf22612c3c4627`)
     if (weather) {
         weather = weather['data'][0]
         let fields = [
@@ -40,7 +44,7 @@ async function getWeather(msg, args) {
             { name: 'Clouds (%)', value: weather['clouds'].toString() },
             { name: 'Wind speed (m/s)', value: weather['wind_spd'].toString() }
         ]
-        modules.sendEmbed(msg.channel, 'Weather for ' + weather['city_name'], 'Weather data: ', null, null, fields, { text: 'Powerd by weatherbit.io' }, weather['ob_time'])
+        modules.sendEmbed(msg.channel, 'Weather for ' + weather['city_name'], '`' + weather['weather']['description'] + '`', null, null, fields, { text: 'Powerd by weatherbit.io' }, weather['ob_time'])
     }
 }
 
@@ -56,24 +60,38 @@ function bulk_delete(msg, args) {
     }
 }
 
-function warn(msg, args) {
+async function warn(msg, args) {
     if (msg.mentions.members.first()) {
         let member = msg.mentions.members.first()
+        let warns = await database.get('users/' + member.id + '/warns')
+        if (warns == undefined) {
+            warns = 0
+        }
         if (args[1] == 'add') {
             console.log('Adding warn')
             modules.log(msg.guild, `<@!${msg.member.id}> warned <@!${member.id}>!`)
-            database.set('users/' + member.id + '/warns', '++')
+            database.set('users/' + member.id + '/warns', warns + 1)
         } else if (args[1] == 'remove') {
-            modules.log(msg.guild, `<@!${msg.member.id}> removed a warn on <@!${member.id}>!`)
-            database.set('users/' + member.id + '/warns', '--')
+            if (warns >= 1) {
+                modules.log(msg.guild, `<@!${msg.member.id}> removed a warn on <@!${member.id}>!`)
+                database.set('users/' + member.id + '/warns', warns - 1)
+            } else {
+                msg.channel.send(`<@!${member.id}> does not have any warns!`)
+            }
         } else if (args[1] == 'delete') {
             modules.log(msg.guild, `<@!${msg.member.id}> removed all warnings on <@!${member.id}>!`)
             database.set('users' + member.id + '/warns', null)
+        } else if (args[1] == 'get') {
+            if (warns) {
+                msg.channel.send(`<@!${member.id}> has **${warns}** warns.`)
+            } else {
+                msg.channel.send('User does not have any warns.')
+            }
         }
     }
 }
 
-function kick(msg, args) {
+async function kick(msg, args) {
     let member = msg.mentions.members.first()
     let rank = modules.getRank(member)
 
@@ -86,10 +104,20 @@ function kick(msg, args) {
         }
         //let user = msg.guild.members.cache.find(user => user.id === member.substring(3, args[1].lenght - 1).toString())
         let reson = 'You were kicked by ' + msg.member.user.username + '#' + msg.member.user.discriminator
-        if (args[2]) {
+        if (args[2] == 'get') {
+            let kicks = database.get(`historical/${member.id}/kicks`)
+            if (kicks) {
+                console.log(kicks.length)
+            } else {
+                msg.channel.send('User does not have any kick.')
+            }
+        } else if (args[2]) {
             reson = args[2]
         }
         member.kick(reson).then(() => {
+            let now = Date.now()
+            console.log(now)
+            database.set(`historical/${member.id}/kicks`, { timestamp: now }, 'push')
             modules.log(msg.guild, `<@!${msg.member.id}> kicked <@!${member.id}>!`)
             msg.channel.send('**Successfully kicked ' + member.user.tag + '**')
         })
@@ -97,24 +125,28 @@ function kick(msg, args) {
     }
 }
 
-function unautherize(msg, args) {
+async function unautherize(msg, args) {
     let member = msg.mentions.members.first()
     let unautherizeRole = msg.guild.roles.cache.find(role => role.id === '881087939638071346')
-
-    if (member != undefined) {
-        if (args[2] == `<@!${member.user.id}>` && member.roles.highest.position > msg.member.roles.highest.position || member.id == modules.owner) {
-            if (member.roles.cache.find(role => role === unautherizeRole)) {
-                let oldRoles = database.get(`users/${member.id}/roles`)
+    if (member) {
+        console.log(args[1])
+        if (args[1] == `<@!${member.user.id}>` && member.roles.highest.position < msg.member.roles.highest.position || member.id == modules.owner) {
+            if (member.roles.cache.has('881087939638071346')) {
+                let oldRoles = await database.get(`users/${member.id}/roles`)
                 for (id in oldRoles) {
                     let role = member.guild.roles.cache.get(id)
-                    member.add(role)
+                    if (role.id != modules.everyoneRole) {
+                        member.roles.add(role)
+                    }
                 }
                 member.roles.remove(unautherizeRole)
                 modules.log(msg.guild, `<@!${msg.member.id}> de-unauthorized <@!${member.id}>!`)
             } else {
                 member.roles.add(unautherizeRole)
                 member.roles.cache.forEach(role => {
-                    member.roles.remove(role)
+                    if (role.id != modules.everyoneRole) {
+                        member.roles.remove(role)
+                    }
                 })
                 modules.log(msg.guild, `<@!${msg.member.id}> unauthorized <@!${member.id}>!`)
             }
@@ -131,6 +163,40 @@ function talk(msg) {
         } else {
             member.roles.add(modules.talkRoleId)
         }
+    }
+}
+
+function lockChannel(msg) {
+    let channel = msg.mentions.channels.first() || msg.channel
+    if (channel) {
+        let memberPerms = channel.permissionsFor('881087229982806016').toArray()
+        let everyonePerms = channel.permissionsFor(msg.guild.roles.everyone.id).toArray()
+        if (memberPerms.includes('SEND_MESSAGES') || everyonePerms.includes('SEND_MESSAGES')) {
+            channel.permissionOverwrites.edit('881087229982806016', {
+                SEND_MESSAGES: false
+            });
+            database.set(`channels/locked/${channel.id}`, true)
+            channel.send('**Channel locked!**')
+        }
+    } else {
+        msg.channel.send('No channel detected!')
+    }
+}
+async function unlock(msg) {
+    let channel = msg.mentions.channels.first() || msg.channel
+    if (channel) {
+        let isLocked = await database.get(`channels/locked/${channel.id}`)
+        if (isLocked == true) {
+            channel.permissionOverwrites.edit('881087229982806016', {
+                SEND_MESSAGES: true
+            });
+            database.set(`channels/locked/${channel.id}`, null)
+            channel.send('**Channel unlocked!**')
+        } else {
+            msg.channel.send('Channel is not locked!')
+        }
+    } else {
+        msg.channel.send('No channel detected!')
     }
 }
 //level 3
@@ -166,6 +232,19 @@ function announce(msg, args) {
     }
 }
 //level 5
+let nonStaffRanks = ['881087229982806016', '881099925419622450', '881087331250077718', '881087857509412864']
+
+function lockdown(msg) {
+    msg.guild.channel.forEach((channel) => {
+        for (rank in nonStaffRanks) {
+            channel.permissionOverwrites.edit(nonStaffRanks[i], {
+                SEND_MESSAGES: false,
+                READ_MESSAGE_HISTORY: false
+            });
+        }
+    })
+}
+
 async function createGetRoleReact(msg, args) {
     //channel, emoji, role, content
     const role = msg.mentions.roles.first()
@@ -187,7 +266,7 @@ async function createGetRoleReact(msg, args) {
                 })
 
                 let data = {
-                    'emoji': '💬',
+                    'emoji': args[2],
                     'channelId': channel.id,
                     'messageId': message.id,
                     'roleId': role.id
@@ -212,6 +291,21 @@ function prefix(msg, args) {
     }
 }
 
+function disable(msg, args, client) {
+    const user = client.user
+    if (modules.disabled == false) {
+        console.log('disabled')
+        modules.disable = true
+        user.setStatus('dnd')
+    } else {
+        modules.disable = false
+        if (modules.maintenanceMode == true) {
+            user.setStatus('idle')
+        } else {
+            user.setStatus('online')
+        }
+    }
+}
 
 function getCommandInfo(msg, args) {
     if (commands[args[1]]) {
@@ -219,10 +313,17 @@ function getCommandInfo(msg, args) {
         let rank = modules.getRank(msg.member)
         if (cmd[1] <= rank) {
             let cmdArgs = ''
-            if (cmd[2]) {
+            if (typeof cmd[2] == 'object') {
                 for (i in cmd[2]) {
-                    cmdArgs = cmdArgs + '`' + cmd[2][i] + '`, '
+                    if (i == cmd[2].length - 1) {
+                        cmdArgs = cmdArgs + '`' + cmd[2][i] + '`.'
+                    } else {
+                        cmdArgs = cmdArgs + '`' + cmd[2][i] + '`, '
+                    }
                 }
+            } else if (typeof cmd[2] == 'number') {
+                msg.channel.send(args[1] + ' has ' + cmd[2] + ' arguments')
+                return
             } else {
                 cmdArgs = 'NONE'
             }
@@ -230,6 +331,8 @@ function getCommandInfo(msg, args) {
         } else {
             msg.channel.send('You do not have access to that command!')
         }
+    } else {
+        msg.channel.send('Command does not exist!')
     }
 }
 
@@ -241,6 +344,7 @@ commands = {
     'afk': [afk, 1],
     'members': [getMemberCount, 1],
     'verify': [verifyRoblox, 1],
+    'unverify': [unverifyRoblox, 1],
     'weather': [getWeather, 1, ['conuntry', 'city']],
     //2
     'bulkdelete': [bulk_delete, 2, ['channel', 'messages']],
@@ -248,13 +352,18 @@ commands = {
     'warn': [warn, 2, ['operation', 'member']],
     'unauthorize': [unautherize, 2, ['member']],
     'talk': [talk, 2, ['member']],
+    'lock': [lockChannel, 5, 1],
+    'unlock': [unlock, 5, 1],
+    //3
     //4
     'rank': [rank, 4, ['operation', 'member', 'role']],
-    'announce': [announce, 4, 1],
+    'announce': [announce, 4, ['channel']],
     //5
-    'prefix': [prefix, 4, 1],
+    'prefix': [prefix, 4, ['prefix']],
+    'create_role_react': [createGetRoleReact, 5, ['channel', 'emoji', 'role', 'content']],
+    'lockdown': [lockdown, 5],
     //unaccesable
-    'create_role_react': [createGetRoleReact, 5, 4]
+    'disable': [disable, 6]
 }
 
 module.exports = commands

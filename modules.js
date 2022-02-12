@@ -3,24 +3,28 @@ const database = require('./database');
 const discord = require('discord.js');
 const axios = require('axios')
 
-const client = new discord.Client({ intents: ["GUILDS", "GUILD_MESSAGES", "GUILD_PRESENCES", "GUILD_MEMBERS", "DIRECT_MESSAGES", "GUILD_VOICE_STATES", "GUILD_MESSAGE_REACTIONS", "GUILD_INVITES"] });
+let client = undefined
 
 let dataLoaded = false
-let maintemenceMode = false
-let serverId = 881086913925251100
-let owner = 702872499402178601
+let maintenanceMode = false
+let serverId = '881086913925251100'
+let owner = '702872499402178601'
 let eventChannels = []
 let talkRoleId = '881155355533525002'
 let disabledRoles = ['881087260940959765', '881088147130294282']
 let unkickables = ['702872499402178601']
+let everyoneRole = '881086913925251102'
+let disabled = false
 
 let ranks = {
+    0: ['everyone', '881086913925251102'],
     1: ['member', '881087229982806016'],
     2: ['moderator', '881087417300439040'],
     3: ['admin', '881087452863942656'],
     4: ['headadmin', '881087515581354004'],
     5: ['ruxyolo', '881087260940959765']
 }
+
 
 async function load() {
     await database.get('serverId').then((d) => {
@@ -44,6 +48,9 @@ async function load() {
         talkRoleId,
         unkickables,
         client,
+        everyoneRole,
+        disabled,
+        maintenanceMode,
         //functions
         'getRank': getRank,
         'getClientUser': getClientUser,
@@ -51,6 +58,7 @@ async function load() {
         'randomize': randomize,
         'sendEmbed': sendEmbed,
         'get': getReq,
+        'setClient': setClient,
 
     }
     dataLoaded = true
@@ -58,11 +66,17 @@ async function load() {
 
 load()
 
+function setClient(c) {
+    client = c
+}
+
 async function getReq(path) {
+    console.log(path)
     console.log('Recived request')
     return new Promise((resolve, reject) => {
         axios.get(path).then(res => {
                 data = res.data
+                console.log(res.statusCode)
                 resolve(data)
             })
             .catch((e) => {
@@ -89,7 +103,7 @@ function getClientUser() {
 }
 
 function sendLog(guild, msg) {
-    if (maintemenceMode == false) {
+    if (maintenanceMode == false) {
         let channel = guild.channels.cache.find(channel => channel.id === '935619297689088030')
         channel.send(msg)
     }
@@ -120,6 +134,7 @@ function sendEmbed(channel, title, desc, col, thumb, fields, footerD, timestamp)
         if (typeof(desc) == 'string') {
             embed.setDescription(desc)
         }
+        console.log(typeof thumb)
         if (typeof(thumb) == 'string') {
             embed.setThumbnail(thumb)
         }
@@ -155,7 +170,7 @@ function sendEmbed(channel, title, desc, col, thumb, fields, footerD, timestamp)
                 embed.setTimestamp(timestamp)
             }
         }
-
+        console.log(embed)
         channel.send({ embeds: [embed] })
     }
 }
