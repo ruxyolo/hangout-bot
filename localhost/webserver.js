@@ -1,6 +1,6 @@
-const express = require('express')
+const express = require('express');
 
-const app = express()
+const app = express();
 let port = 3000
 
 app.listen(port, function() {
@@ -9,8 +9,8 @@ app.listen(port, function() {
 
 function startHost() {
     app.get('/', function(req, res) {
-        res.sendFile('index.html')
+        res.sendFile('/Users/johab/OneDrive/Documents/GitHub/hangout-bot/localhost/index.html')
     });
 }
 
-module.exports = startHost;
+module.exports = startHost
