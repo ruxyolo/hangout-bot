@@ -1,10 +1,11 @@
 {
     "name": "hangout_bot",
     "version": "1.0.0",
-    "description": "",
+    "description": "This is a Discord bot for: discord.gg/3SVA7xPAq2 (invite link).",
     "main": "main.js",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "test": "echo \"Error: no test specified\" && exit 1",
+	"start": "node main.js"
     },
     "author": "",
     "license": "ISC",
