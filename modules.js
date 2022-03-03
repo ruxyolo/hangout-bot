@@ -6,7 +6,7 @@ const axios = require('axios')
 let client = undefined
 
 let dataLoaded = false
-let maintenanceMode = false
+let maintenanceMode = true
 let serverId = '881086913925251100'
 let owner = '702872499402178601'
 let eventChannels = []
@@ -71,16 +71,12 @@ function setClient(c) {
 }
 
 async function getReq(path) {
-    console.log(path)
-    console.log('Recived request')
     return new Promise((resolve, reject) => {
         axios.get(path).then(res => {
                 data = res.data
-                console.log(res.statusCode)
                 resolve(data)
             })
             .catch((e) => {
-                console.log(e)
                 reject(e)
             })
     })
@@ -88,7 +84,9 @@ async function getReq(path) {
 
 function getRank(user) {
     let rank = 0
-
+    if (!user) {
+        return undefined
+    }
     for (i in ranks) {
         let rankId = ranks[i][1]
         if (user.roles.cache.find(role => role.id === rankId)) {
@@ -170,7 +168,6 @@ function sendEmbed(channel, title, desc, col, thumb, fields, footerD, timestamp)
                 embed.setTimestamp(timestamp)
             }
         }
-        console.log(embed)
         channel.send({ embeds: [embed] })
     }
 }

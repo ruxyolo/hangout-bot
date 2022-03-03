@@ -68,7 +68,6 @@ async function warn(msg, args) {
             warns = 0
         }
         if (args[1] == 'add') {
-            console.log('Adding warn')
             modules.log(msg.guild, `<@!${msg.member.id}> warned <@!${member.id}>!`)
             database.set('users/' + member.id + '/warns', warns + 1)
         } else if (args[1] == 'remove') {
@@ -103,25 +102,28 @@ async function kick(msg, args) {
             }
         }
         //let user = msg.guild.members.cache.find(user => user.id === member.substring(3, args[1].lenght - 1).toString())
-        let reson = 'You were kicked by ' + msg.member.user.username + '#' + msg.member.user.discriminator
+        let reson = 'Kicked by ' + msg.member.user.username + '#' + msg.member.user.discriminator
         if (args[2] == 'get') {
-            let kicks = database.get(`historical/${member.id}/kicks`)
+            let kicks = await database.get(`historical/users/${member.id}/kicks`)
             if (kicks) {
-                console.log(kicks.length)
+                msg.channel.send(`User has ${kicks.length} kicks.`)
             } else {
-                msg.channel.send('User does not have any kick.')
+                msg.channel.send('User have never been kicked.')
             }
+            return
         } else if (args[2]) {
-            reson = args[2]
+            reson = args[2] + ' || ' + reson
         }
         member.kick(reson).then(() => {
             let now = Date.now()
             console.log(now)
-            database.set(`historical/${member.id}/kicks`, { timestamp: now }, 'push')
+            database.set(`historical/users/${member.id}/kicks`, { timestamp: now }, 'push')
             modules.log(msg.guild, `<@!${msg.member.id}> kicked <@!${member.id}>!`)
             msg.channel.send('**Successfully kicked ' + member.user.tag + '**')
         })
 
+    } else {
+        console.log('User is not a member or member does not exist.')
     }
 }
 
@@ -176,6 +178,7 @@ function lockChannel(msg) {
                 SEND_MESSAGES: false
             });
             database.set(`channels/locked/${channel.id}`, true)
+            modules.log(`@!<${msg.member.id}> locked ${channel.name} [${channel.id}]`)
             channel.send('**Channel locked!**')
         }
     } else {
@@ -191,6 +194,7 @@ async function unlock(msg) {
                 SEND_MESSAGES: true
             });
             database.set(`channels/locked/${channel.id}`, null)
+            modules.log(`@!<${msg.member.id}> unlocked ${channel.name} [${channel.id}]`)
             channel.send('**Channel unlocked!**')
         } else {
             msg.channel.send('Channel is not locked!')
@@ -208,6 +212,7 @@ function rank(msg, args) {
     if (args[2] == `<@!${member.user.id}>` && args[3] == `<@&${rank.id}>` && member.roles.highest.position < msg.member.roles.highest.position || member.id == modules.owner) {
         for (i in modules.disabledRoles) {
             if (modules.disabledRoles[i] == rank.id) {
+                modules.log(`@!${msg.member.id} tryed to give @!${member.id} a forbiden role ( @&${rank.id}> )`)
                 msg.channel.send('Mentioned role is forbiden to use with the bot.')
                 return
             }
@@ -235,6 +240,7 @@ function announce(msg, args) {
 let nonStaffRanks = ['881087229982806016', '881099925419622450', '881087331250077718', '881087857509412864']
 
 function lockdown(msg) {
+    modules.log('Server is in lockdown!')
     msg.guild.channel.forEach((channel) => {
         for (rank in nonStaffRanks) {
             channel.permissionOverwrites.edit(nonStaffRanks[i], {
@@ -272,6 +278,7 @@ async function createGetRoleReact(msg, args) {
                     'roleId': role.id
                 }
                 database.set(`reactions/${num}`, data)
+                modules.log(modules.log(`@!<${msg.member.id}> added a role react in @#<${channel.id}> with message "${messageToSend}", wich gives you @&<${role.id}>`))
             } else {
                 msg.channel.send('Argument 3 is not a vaild emoji.')
             }
@@ -285,7 +292,8 @@ function prefix(msg, args) {
     console.log(args[1].length)
     if (args[1].length <= 2) {
         database.set('/prefix', args[1])
-        console.log('Changing prefix')
+        modules.log(`@!<${msg.member.id}> updated the prefix to ${args[1]}`)
+        console.log('Prefix changed')
     } else {
         msg.channel.send('Prefix may only be under 2 characters.')
     }
@@ -315,6 +323,10 @@ function getCommandInfo(msg, args) {
             let cmdArgs = ''
             if (typeof cmd[2] == 'object') {
                 for (i in cmd[2]) {
+                    if (cmd[2][i].includes('%o%')) {
+                        cmd[2][i] = cmd[2][i].substring(3) + ' (Optional)'
+                        console.log(cmd[2][i])
+                    }
                     if (i == cmd[2].length - 1) {
                         cmdArgs = cmdArgs + '`' + cmd[2][i] + '`.'
                     } else {
@@ -343,12 +355,12 @@ commands = {
     'hello': [hello, 1],
     'afk': [afk, 1],
     'members': [getMemberCount, 1],
-    'verify': [verifyRoblox, 1],
+    'verify': [verifyRoblox, 1, [], true],
     'unverify': [unverifyRoblox, 1],
     'weather': [getWeather, 1, ['conuntry', 'city']],
     //2
     'bulkdelete': [bulk_delete, 2, ['channel', 'messages']],
-    'kick': [kick, 2, ['member']],
+    'kick': [kick, 2, ['member', '%o%Reson/operation']],
     'warn': [warn, 2, ['operation', 'member']],
     'unauthorize': [unautherize, 2, ['member']],
     'talk': [talk, 2, ['member']],
@@ -360,12 +372,12 @@ commands = {
     'announce': [announce, 4, ['channel']],
     //5
     'prefix': [prefix, 4, ['prefix']],
-    'create_role_react': [createGetRoleReact, 5, ['channel', 'emoji', 'role', 'content']],
-    'lockdown': [lockdown, 5],
+    'create_role_react': [createGetRoleReact, 5, ['%o%channel', 'emoji', 'role', 'content']],
+    'lockdown': [lockdown, '%o%hi hi hi haw'],
     //unaccesable
     'disable': [disable, 6]
 }
 
 module.exports = commands
 
-//main_cmd: [func, [rank: int, user: user, role: role], [args1_name, args2_name, args3_name, ...]]
+//main_cmd: [func, [rank: int, user: userId, role: roleId], ?[args1_name, args2_name, args3_name, ...], ?disabled]

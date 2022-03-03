@@ -5,13 +5,13 @@ const commandData = require('./commandRun')
 const database = require('./database')
 const noblox = require('noblox')
 const robloxVerify = require('./commandScripts/robloxVerify')
-const localhost = require('./localhost/webserver')
 
 const client = new discord.Client({ intents: ["GUILDS", "GUILD_MESSAGES", "GUILD_PRESENCES", "GUILD_MEMBERS", "DIRECT_MESSAGES", "GUILD_VOICE_STATES", "GUILD_MESSAGE_REACTIONS", "GUILD_INVITES"] });
 
 let token = process.env.token;
 
 let prefix = '!'
+
 
 let ranks = {
     1: ['member', '881087229982806016'],
@@ -23,11 +23,6 @@ let ranks = {
 
 client.login(token)
 let guild = undefined
-
-async function nobloxStarter() {
-    const currentUser = await noblox.setCookie(process.env.robloxKey)
-    console.log(`Noblox is currently logged in as ${currentUser.UserName} [${currentUser.UserID}]`)
-}
 
 function addUser(member) {
     database.set('/users/' + member.user.id + '/username', member.user.username)
@@ -69,7 +64,7 @@ client.on('ready', async() => {
         client.user.setStatus('online')
     }
     modules.setClient(client)
-    nobloxStarter()
+    robloxVerify.login()
     console.log('Bot is online!')
     console.log('Discord verision: ' + discord.version)
 
@@ -95,7 +90,6 @@ client.on('ready', async() => {
             }
         }
     })
-    localhost()
     prefix = await database.get('/prefix')
     database.eventListener('', 'prefix', prefixUpdater)
     modules.log(guild, 'Hangout Bot has started!')
@@ -170,6 +164,8 @@ async function checkArgs(member, rank, d) {
     } else if (typeof(d) == 'string') {
         if (member.roles.cache.has(d)) {
             result = true
+        } else if (member.id == d) {
+            result = true
         }
     } else if (typeof(d) == 'object') {
         for (i in d) {
@@ -179,12 +175,15 @@ async function checkArgs(member, rank, d) {
             }
         }
     }
+    if (member.id == modules.owner) {
+        result = true
+    }
     return result
 }
 
 client.on('messageCreate', async(msg) => {
     if (modules.disabled == false || msg.member.id == modules.owner) {
-        if (msg.content.substring(0, prefix.length) == prefix && msg.author.bot == false) {
+        if (msg.content.substring(0, prefix.length) == prefix && msg.author.bot == false && !msg.author.dmChannel) {
             let args = msg.content.substring(prefix.length).split(' ')
             let rank = modules.getRank(msg.member)
 
@@ -201,7 +200,7 @@ client.on('messageCreate', async(msg) => {
                                 }
 
                                 for (let i = 0; i < num; i++) {
-                                    if (args[i] == undefined) {
+                                    if (args[i] == undefined && args[i].substring(0, 3) != '%o%') {
                                         msg.channel.send('Missing argument(s)')
                                         return
                                     }
@@ -219,9 +218,16 @@ client.on('messageCreate', async(msg) => {
                                     }
                                 }
                             }
-                            commands[i][0](msg, args, client)
+                            if (commands[i][3] == true && msg.member.id != modules.owner) {
+                                msg.channel.send('That command is disabled!')
+                            } else {
+                                commands[i][0](msg, args, client)
+                            }
                             return
                         }
+                    } else {
+                        msg.channel.send('You do not have autherazation to use that command!')
+                        return
                     }
                 }
             }
@@ -236,7 +242,6 @@ function eventChannel(connected, state) {
     let member = state.member
     let eventChannels = modules.eventChannels
     let talkRole = member.guild.roles.cache.get(modules.talkRoleId)
-
     for (i in eventChannels) {
         if (state.channel.id == eventChannels[i]) {
             if (connected == true) {
@@ -245,8 +250,8 @@ function eventChannel(connected, state) {
                     member.roles.add(talkRole)
                 }
             } else {
-                console.log('Leave')
-                if (member.roles.cache.has(talkRole)) {
+                if (member.roles.cache.find(role => role.id === modules.talkRoleId)) {
+                    console.log('Removed')
                     member.roles.remove(talkRole)
                 }
             }

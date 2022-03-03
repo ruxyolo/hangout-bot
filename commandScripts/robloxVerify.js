@@ -10,15 +10,21 @@ async function setRobloxData(msg, id, dmC) {
     await msg.author.send(`Please set your roblox user description to "${message}", then type "done". You can type "update" to remake the description in case that roblox filters it.`)
     dmC.awaitMessages({ filter, max: 1, time: 1200000, errors: ['time'] }).then(async collector => {
         if (collector.first().content.toLowerCase() == 'done') {
-            noblox.getPlayerInfo(id).then(async info => {
-                if (info.blurb == message && info.isBanned == false) {
-                    const thumbnail = await noblox.getPlayerThumbnail(id, "48x48", "png", true, "headshot")
+            modules.get(`https://users.roblox.com/v1/users/${id}`).then(async info => {
+                if (info.description == message && info.isBanned == false) {
+                    const thumbnail = await modules.get(`https://thumbnails.roblox.com/v1/users/avatar?userIds=${id}&size=30x30&format=Png&isCircular=true`)
+                    const friends = await modules.get(`https://friends.roblox.com/v1/users/${id}/friends/count`)
+                    const oldNamesData = await modules.get(`https://users.roblox.com/v1/users/${id}/username-history?limit=10&sortOrder=Asc`)
+                    let oldNames = []
+                    for (i in oldNamesData['data']) {
+                        oldNames.push(oldNamesData[i])
+                    }
                     msg.author.send('User was found. You may now change back your description.')
-                    modules.sendEmbed(msg.author, info.username, `**Description:** ${info.blurb}, **Joined:** ${info.joinDate}, **Friends:** ${info.friendCount}, **Old names:** ${info.oldNames}.`, 'GREEN', thumbnail[0]['imageUrl'])
+                    modules.sendEmbed(msg.author, info.name, `**Description:** ${info.description}, **Joined:** ${info.created}, **Friends:** ${friends}, **Old names:** ${oldNames}.`, 'GREEN', thumbnail['data'][0]['imageUrl'])
                     await msg.author.send('Is this your account? (Type yes or no)')
                     dmC.awaitMessages({ filter, max: 1, time: 1200000, errors: ['time'] }).then(async collector => {
                         if (collector.first().content.toLowerCase() == 'yes') {
-                            database.set(`/users/${msg.author.id}/roblox`, { username: info.username, id: id })
+                            database.set(`/users/${msg.author.id}/roblox`, { username: info.name, id: id })
                             msg.author.send('Roblox account was successfully conected!')
                         } else if (collector.first().content.toLowerCase() == 'no') {
                             msg.author.send('Operation successfully aborted!')
@@ -27,14 +33,14 @@ async function setRobloxData(msg, id, dmC) {
                 } else {
                     msg.author.send('Description was never set correctly or user is banned')
                 }
-            });
+            }).catch(e => msg.author.send('E: ' + e));
         } else if (collector.first().content == 'update') {
             setRobloxData(msg, id, dmC)
         } else {
             msg.author.send('Operation failed!')
             setRobloxData(msg, id, dmC)
         }
-    }).catch((e) => msg.author.send('Timeouted, please redo the verify command in the server.'))
+    }).catch((e) => msg.author.send('Timeouted, please redo the verify command in the server.  ' + e))
 }
 
 async function verify(msg) {
@@ -106,10 +112,16 @@ async function update(member) {
     }
 }
 
+async function login() {
+    const currentUser = await noblox.setCookie(process.env.robloxKey)
+    console.log(`Noblox is currently logged in as ${currentUser.UserName} [${currentUser.UserID}]`)
+}
+
 def = {
     'verify': verify,
     'unverify': unverify,
-    'update': update
+    'update': update,
+    'login': login
 }
 
 module.exports = def
