@@ -1,4 +1,3 @@
-require('dotenv').config()
 const sleep = require('system-sleep');
 const database = require('./database');
 const discord = require('discord.js');
@@ -7,7 +6,7 @@ const axios = require('axios')
 let client = undefined
 
 let dataLoaded = false
-let maintenanceMode = Boolean(process.env.maintenanceMode)
+let maintenanceMode = false
 let serverId = '881086913925251100'
 let owner = '702872499402178601'
 let eventChannels = []
