@@ -52,14 +52,7 @@ function prefixUpdater(key, value) {
 
 client.on('ready', async() => {
     if (modules.maintenanceMode == true) {
-        client.user.setPresence({
-            game: {
-                name: 'Maintenance',
-                type: 'WATCHING'
-            },
-            status: 'idle',
-            afk: true
-        })
+        client.user.setStatus('idle')
     } else {
         client.user.setStatus('online')
     }
@@ -210,6 +203,7 @@ client.on('messageCreate', async(msg) => {
                                     for (c in checks) {
                                         c = checks[c]
                                         if (commands[i][2][arg] == c) {
+                                            console.log(msg.mentions[c + 's'])
                                             if (!msg.mentions[c + 's'].first()) {
                                                 msg.channel.send(c + ' was never mentioned in message or ' + c + ' does not exist in the server.')
                                                 return
@@ -242,6 +236,7 @@ function eventChannel(connected, state) {
     let member = state.member
     let eventChannels = modules.eventChannels
     let talkRole = member.guild.roles.cache.get(modules.talkRoleId)
+    console.log(modules.talkRoleId)
     for (i in eventChannels) {
         if (state.channel.id == eventChannels[i]) {
             if (connected == true) {

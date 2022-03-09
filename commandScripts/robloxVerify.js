@@ -19,19 +19,19 @@ async function setRobloxData(msg, id, dmC) {
                     for (i in oldNamesData['data']) {
                         oldNames.push(oldNamesData[i])
                     }
-                    msg.author.send('User was found. You may now change back your description.')
+                    msg.author.send('User was found. You may now change back your description.').catch((e) => { msg.channel.send('Please check if your DMs are open.') })
                     modules.sendEmbed(msg.author, info.name, `**Description:** ${info.description}, **Joined:** ${info.created}, **Friends:** ${friends}, **Old names:** ${oldNames}.`, 'GREEN', thumbnail['data'][0]['imageUrl'])
-                    await msg.author.send('Is this your account? (Type yes or no)')
+                    await msg.author.send('Is this your account? (Type yes or no)').catch((e) => { msg.channel.send('Please check if your DMs are open.') })
                     dmC.awaitMessages({ filter, max: 1, time: 1200000, errors: ['time'] }).then(async collector => {
                         if (collector.first().content.toLowerCase() == 'yes') {
                             database.set(`/users/${msg.author.id}/roblox`, { username: info.name, id: id })
-                            msg.author.send('Roblox account was successfully conected!')
+                            msg.author.send('Roblox account was successfully conected!').catch((e) => { msg.channel.send('Please check if your DMs are open.') })
                         } else if (collector.first().content.toLowerCase() == 'no') {
-                            msg.author.send('Operation successfully aborted!')
+                            msg.author.send('Operation successfully aborted!').catch((e) => { msg.channel.send('Please check if your DMs are open.') })
                         }
-                    }).catch((e) => msg.author.send('Timeouted, please redo the verify command in the server.'))
+                    }).catch((e) => msg.author.send('Timeouted, please redo the verify command in the server.').catch((e) => { msg.channel.send('Please check if your DMs are open.') }))
                 } else {
-                    msg.author.send('Description was never set correctly or user is banned')
+                    msg.author.send('Description was never set correctly or user is banned').catch((e) => { msg.channel.send('Please check if your DMs are open.') })
                 }
             }).catch(e => msg.author.send('E: ' + e));
         } else if (collector.first().content == 'update') {
@@ -46,19 +46,19 @@ async function setRobloxData(msg, id, dmC) {
 async function verify(msg) {
     const data = await database.get(`users/${msg.author.id}`)
     if (data['roblox']) {
-        msg.author.send('You have already verifyed yourself.')
+        msg.author.send('You have already verifyed yourself.').catch((e) => { msg.channel.send('Please check if your DMs are open.') })
         return
     }
-    const message = await msg.author.send('Please enter your roblox username.')
+    const message = await msg.author.send('Please enter your roblox username.').catch((e) => { msg.channel.send('Please check if your DMs are open.') })
     let dmC = message.channel
     const filter = collector => collector.author.id === msg.author.id
-    const collector = await dmC.awaitMessages({ filter, max: 1, time: 60000, errors: ['time'] }).catch((e) => console.log('Timeouted, please redo the verify command in the server.'))
+    const collector = await dmC.awaitMessages({ filter, max: 1, time: 60000, errors: ['time'] }).catch((e) => msg.author.send('Timeouted, please redo the verify command in the server.').catch((e) => { msg.channel.send('Please check if your DMs are open.') }))
     if (collector) {
         let username = collector.first().content
         await noblox.getIdFromUsername(username).then((id) => {
             setRobloxData(msg, id, dmC)
         }).catch((e) => {
-            msg.author.send('User was not found!')
+            msg.author.send('User was not found!').catch((e) => { msg.channel.send('Please check if your DMs are open.') })
             verify(msg)
         })
 
@@ -70,7 +70,7 @@ async function unverify(msg) {
     if (accountData['roblox']) {
         msg.channel.send('Are you sure that you wanna delete your roblox connection? (Type yes or no)')
         const filter = collector => collector.author.id === msg.author.id
-        const collector = await msg.channel.awaitMessages({ filter, max: 1, time: 60000, errors: ['time'] }).catch((e) => console.log('Timeouted! Did not delete roblox connection.'))
+        const collector = await msg.channel.awaitMessages({ filter, max: 1, time: 60000, errors: ['time'] }).catch((e) => msg.channel.send('Timeouted! Did not delete roblox connection.'))
         if (collector) {
             if (collector.first().content.toLowerCase() == 'yes') {
                 database.set(`users/${msg.member.id}/roblox`, null)
