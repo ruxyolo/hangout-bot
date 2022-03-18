@@ -14,8 +14,7 @@ const firebaseConfig = {
     projectId: "hangout-bot-ca69c",
     messagingSenderId: "384036425228",
     measurementId: "G-H8DT7H32C5",
-    provider: "anonymous",
-    uid: process.env.UID
+    provider: "anonymous"
 };
 
 const app = firebaseApp.initializeApp(firebaseConfig)
