@@ -7,7 +7,7 @@ let words = ['blue', 'red', 'yellow', 'green', 'purple', 'pink', 'white'];
 async function setRobloxData(msg, id, dmC) {
     let message = modules.randomize(words)
     const filter = collector => collector.author.id === msg.author.id
-    await msg.author.send(`Please set your roblox user description to "${message}", then type "done". You can type "update" to remake the description in case that roblox filters it.`)
+    await msg.author.send(`Please set your roblox user description to "${message}", then type "done". You can type "update" to remake the description in case that roblox filters it.`).catch((e) => { msg.channel.send('Please check if your DMs are open.') })
     dmC.awaitMessages({ filter, max: 1, time: 1200000, errors: ['time'] }).then(async collector => {
         if (collector.first().content.toLowerCase() == 'done') {
             modules.get(`https://users.roblox.com/v1/users/${id}`).then(async info => {
@@ -33,14 +33,14 @@ async function setRobloxData(msg, id, dmC) {
                 } else {
                     msg.author.send('Description was never set correctly or user is banned').catch((e) => { msg.channel.send('Please check if your DMs are open.') })
                 }
-            }).catch(e => msg.author.send('E: ' + e));
+            }).catch(e => msg.author.send('E: ' + e)).catch((e) => { msg.channel.send('Please check if your DMs are open.') });
         } else if (collector.first().content == 'update') {
             setRobloxData(msg, id, dmC)
         } else {
-            msg.author.send('Operation failed!')
+            msg.author.send('Operation failed!').catch((e) => { msg.channel.send('Please check if your DMs are open.') })
             setRobloxData(msg, id, dmC)
         }
-    }).catch((e) => msg.author.send('Timeouted, please redo the verify command in the server.  ' + e))
+    }).catch((e) => msg.author.send('Timeouted, please redo the verify command in the server.  ' + e)).catch((e) => { msg.channel.send('Please check if your DMs are open.') })
 }
 
 async function verify(msg) {
