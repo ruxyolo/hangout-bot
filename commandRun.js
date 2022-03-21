@@ -191,7 +191,7 @@ async function unlock(msg) {
         let isLocked = await database.get(`channels/locked/${channel.id}`)
         if (isLocked == true) {
             channel.permissionOverwrites.edit('881087229982806016', {
-                SEND_MESSAGES: true
+                SEND_MESSAGES: null
             });
             database.set(`channels/locked/${channel.id}`, null)
             modules.log(`@!<${msg.member.id}> unlocked ${channel.name} [${channel.id}]`)
@@ -355,7 +355,7 @@ commands = {
     'hello': [hello, 1],
     'afk': [afk, 1],
     'members': [getMemberCount, 1],
-    'verify': [verifyRoblox, 1, [], true],
+    'verify': [verifyRoblox, 1, []],
     'unverify': [unverifyRoblox, 1],
     'weather': [getWeather, 1, ['conuntry', 'city']],
     //2
@@ -372,7 +372,7 @@ commands = {
     'announce': [announce, 4, ['channel']],
     //5
     'prefix': [prefix, 4, ['prefix']],
-    'create_role_react': [createGetRoleReact, 5, ['%o%channel', 'emoji', 'role', 'content']],
+    'create_role_react': [createGetRoleReact, 5, ['channel', 'emoji', 'role', 'content']],
     'lockdown': [lockdown, '%o%hi hi hi haw'],
     //unaccesable
     'disable': [disable, 6]
