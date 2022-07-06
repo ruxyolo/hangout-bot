@@ -1,4 +1,4 @@
-const noblox = require('noblox')
+const noblox = require('noblox.js')
 const modules = require('../modules')
 const database = require('../database');
 

@@ -3,7 +3,7 @@ const discord = require('discord.js');
 const modules = require('./modules')
 const commandData = require('./commandRun')
 const database = require('./database')
-const noblox = require('noblox')
+const noblox = require('noblox.js')
 const robloxVerify = require('./commandScripts/robloxVerify')
 
 const client = new discord.Client({ intents: ["GUILDS", "GUILD_MESSAGES", "GUILD_PRESENCES", "GUILD_MEMBERS", "DIRECT_MESSAGES", "GUILD_VOICE_STATES", "GUILD_MESSAGE_REACTIONS", "GUILD_INVITES"] });

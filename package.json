@@ -13,7 +13,7 @@
         "discord.js": "^13.1.0",
         "dotenv": "^14.2.0",
         "firebase": "^9.6.4",
-        "noblox": "^4.8.5",
+        "noblox.js": "^4.13.1",
         "system-sleep": "^1.3.7"
     },
     "engines": {
