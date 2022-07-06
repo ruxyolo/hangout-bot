@@ -113,6 +113,8 @@ async function update(member) {
 }
 
 async function login() {
+    console.log('Logging into roblox account via noblox.js')
+    console.log(process.env.robloxKey)
     const currentUser = await noblox.setCookie(process.env.robloxKey)
     console.log(`Noblox is currently logged in as ${currentUser.UserName} [${currentUser.UserID}]`)
 }
