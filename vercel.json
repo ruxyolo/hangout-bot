@@ -2,9 +2,9 @@
    "version": 2,
    "name": "hangout-bot",
    "builds": [
-      { "src": "app.js", "use": "@vercel/node" }
+      { "src": "main.js", "use": "@vercel/node" }
    ],
    "routes": [
-      { "src": "/(.*)", "dest": "/app.js" }
+      { "src": "/(.*)", "dest": "/main.js" }
    ]
 }
