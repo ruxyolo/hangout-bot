@@ -4,8 +4,7 @@
     "description": "",
     "main": "main.js",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1",
-	"build": "hangout-bot build --output public"
+        "test": "echo \"Error: no test specified\" && exit 1"
     },
     "author": "",
     "license": "ISC",
@@ -19,5 +18,11 @@
     },
     "engines": {
         "node": "16.x"
-    }
+    },
+    "builds": [
+      { "src": "app.js", "use": "@vercel/node" }
+    ],
+    "routes": [
+      { "src": "/(.*)", "dest": "/app.js" }
+    ]
 }
